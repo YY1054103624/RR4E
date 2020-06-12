@@ -33,4 +33,25 @@ C:\...\PP4E> python System\whereami.py
 my os.getcwd => C:\...\PP4E
 my sys.path => ['C:\\...\\PP4E\\System', 'C:\\PP4thEd\\Examples', ...more... ]
 ```
+The net effects is that filenames without directory paths in a script will be mapped to the place where the *command* was typed(**os.getcwd**), but imports still have access to the directory of the *script* being run (via the front of sys.path). The following output, for example, appears in a new DOS console box when whereami.py is double-clicked in Windows Explorer:
+# Command-Line Arguments
+```python
+>>> import sys
+>>> sys.argv
+```
+*Example 3-1. PP4E\System\testargv.py*
+```python
+import sys
+print(sys.argv)
+```
+```python
+C:\...\PP4E\System> python testargv.py
+['testargv.py']
 
+C:\...\PP4E\System> python testargv.py spam eggs cheese
+['testargv.py', 'spam', 'eggs', 'cheese']
+
+C:\...\PP4E\System> python testargv.py -i data.txt -o results.txt
+['testargv.py', '-i', 'data.txt', '-o', 'results.txt']
+```
+The last command here illustrates a common convention. Much like function argu- ments, command-line options are sometimes passed by position and sometimes by name using a “-name value” word pair.
