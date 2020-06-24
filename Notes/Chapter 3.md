@@ -562,4 +562,169 @@ As in the prior section, instances of **StringIO** objects can be assigned to **
 
 Note that there is also an **io.BytesIO** class with similar behavior, but which maps file operations to an in-memory bytes buffer, instead of a **str** string:
 
+## Capturing the stderr Stream
 
+Redirecting standard errors from a shell command line is a bit more complex and less portable. On most Unix-like systems, we can usually capture **stderr** output by using shell-redirection syntax of the form **command > output 2>&1**.
+
+## Redirection Syntax in Print Calls
+
+```python
+print(stuff, file=afile) # afile is an object, not a string name
+```
+
+```python
+import sys
+print('spam' * 2, file=sys.stderr)
+```
+
+Similarly, we can use either our custom class or the standard library’s class as the output file with this hook:
+
+```python
+>>> from io import StringIO
+>>> buff = StringIO()
+>>> print(42, file=buff)
+>>> print('spam', file=buff)
+>>> print(buff.getvalue())
+42
+spam
+>>> from redirect import Output
+>>> buff = Output()
+>>> print(43, file=buff)
+>>> print('eggs', file=buff)
+>>> print(buff.text)
+43
+eggs
+```
+
+## Other Redirection Options: os.popen and subprocess Revisited
+
+### Redirecting input or output with os.popen
+
+```python
+C:\...\PP4E\System\Streams> type hello-out.py
+print('Hello shell world')
+
+C:\...\PP4E\System\Streams> type hello-in.py
+inp = input()
+open('hello-in.txt', 'w').write('Hello ' + inp + '\n')
+```
+
+These scripts can be run from a system shell window as usual:
+
+```python
+C:\...\PP4E\System\Streams> python hello-out.py
+Hello shell world
+
+C:\...\PP4E\System\Streams> python hello-in.py
+Brian
+
+C:\...\PP4E\System\Streams> type hello-in.txt
+Hello Brian
+```
+
+As we saw in the prior chapter, Python scripts can read *output* from other programs and scripts like these, too, using code like the following:
+
+```python
+C:\...\PP4E\System\Streams> python
+>>> import os
+>>> pipe = os.popen('python hello-out.py') # 'r' is default--read stdout
+>>> pipe.read()
+'Hello shell world\n'
+>>> print(pipe.close()) # exit status: None is good
+None
+```
+
+But Python scripts can also provide *input* to spawned programs’ standard input streams—passing a “w” mode argument, instead of the default “r”, connects the re- turned object to the spawned program’s input stream.
+
+```python
+>>> pipe = os.popen('python hello-in.py', 'w') # 'w'--write to program stdin
+>>> pipe.write('Gumby\n')
+6
+>>> pipe.close() # \n at end is optional
+>>> open('hello-in.txt').read() # output sent to a file
+'Hello Gumby\n'
+```
+
+### Redirecting input and output with subprocess
+
+```python
+C:\...\PP4E\System\Streams> python
+>>> from subprocess import Popen, PIPE, call
+>>> X = call('python hello-out.py') # convenience
+Hello shell world
+>>> X
+0
+
+>>> pipe = Popen('python hello-out.py', stdout=PIPE)
+>>> pipe.communicate()[0] # (stdout, stderr)
+b'Hello shell world\r\n'
+>>> pipe.returncode # exit status
+0
+
+>>> pipe = Popen('python hello-out.py', stdout=PIPE)
+>>> pipe.stdout.read()
+b'Hello shell world\r\n'
+>>> pipe.wait() # exit status
+0
+```
+
+```python
+>>> pipe = Popen('python hello-in.py', stdin=PIPE)
+>>> pipe.stdin.write(b'Pokey\n')
+6
+>>> pipe.stdin.close()
+>>> pipe.wait()
+0
+>>> open('hello-in.txt').read() # output sent to a file
+'Hello Pokey\n'
+```
+
+In fact, we can use obtain *both the input and output* streams of a spawned program with this module. Let’s reuse the simple writer and reader scripts we wrote earlier to demonstrate:
+
+```shell script
+C:\...\PP4E\System\Streams> type writer.py
+print("Help! Help! I'm being repressed!")
+print(42)
+
+C:\...\PP4E\System\Streams> type reader.py
+print('Got this: "%s"' % input())
+import sys
+data = sys.stdin.readline()[:-1]
+print('The meaning of life is', data, int(data) * 2)
+```
+
+```python
+>>> pipe = Popen('python reader.py', stdin=PIPE, stdout=PIPE)
+>>> pipe.stdin.write(b'Lumberjack\n')
+11
+>>> pipe.stdin.write(b'12\n')
+3
+>>> pipe.stdin.close()
+>>> output = pipe.stdout.read()
+>>> pipe.wait()
+0
+>>> output
+b'Got this: "Lumberjack"\r\nThe meaning of life is 12 24\r\n'
+```
+
+```python
+C:\...\PP4E\System\Streams> python writer.py | python reader.py
+Got this: "Help! Help! I'm being repressed!"
+The meaning of life is 42 84
+
+C:\...\PP4E\System\Streams> python
+>>> from subprocess import Popen, PIPE
+>>> p1 = Popen('python writer.py', stdout=PIPE)
+>>> p2 = Popen('python reader.py', stdin=p1.stdout, stdout=PIPE)
+>>> output = p2.communicate()[0]
+>>> output
+b'Got this: "Help! Help! I\'m being repressed!"\r\nThe meaning of life is 42 84\r\n'
+>>> p2.returncode
+0
+```
+
+We can get close to this with **os.popen**, but that the fact that its pipes are read or write (and not both) prevents us from catching the second script’s output in our code:
+
+```python
+
+```
